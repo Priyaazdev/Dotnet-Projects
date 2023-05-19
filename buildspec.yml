@@ -1,0 +1,17 @@
+version: 0.2
+phases:
+  pre_build:
+    install:
+      runtime-versions:
+        dotnet: "3.1"
+    commands:
+      - echo Restore started on `date`
+      - dotnet restore MovieDb.csproj
+  build:
+    commands:
+      - echo Build started on `date`
+      - dotnet publish -c release -o ./build_output MovieDb.csproj
+artifacts:
+  files:
+    - CodeBuild-SampleCore/build_output/**/*
+    
