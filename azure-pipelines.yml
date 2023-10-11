@@ -4,29 +4,80 @@
 # https://aka.ms/yaml
 
 trigger:
-- main
-
-pool:
-  vmImage: ubuntu-latest
+  - main
 
 variables:
-  buildConfiguration: 'Release'
+  buildConfiguration: "Release"
+  vmImageName: windows-latest
+  environmentName: "aspnet-core-devops"
+  imageName: "neethucleetus/api"
+  dockerRegistryServiceConnection: "azure_portal"
+  tag: "$(Build.BuildId)"
 
-steps:
-- task: DotNetCoreCLI@2
-  displayName: 'Build the Project'
-  inputs:
-    command: 'build'
-    projects: '**/*.csproj'
-    arguments: '--configuration $(buildConfiguration)'
-- task: DotNetCoreCLI@2
-  displayName: "Publish"
-  inputs:
-    command: 'publish'
-    publishWebProjects: true
-    arguments: '--configuration $(buildConfiguration) output $(build.ArtifactStagingDirectory)'
-- task: PublishBuildArtifacts@1
-  inputs:
-    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
-    ArtifactName: 'drop'
-    publishLocation: 'Container'
+stages:
+  - stage: Build
+    displayName: Build
+    jobs:
+      - job: Build
+        displayName: Build Stage
+        pool:
+          vmImage: $(vmImageName)
+        steps:
+          - task: UseDotNet@2
+            displayName: .NET 6 SDK
+            inputs:
+              packageType: "sdk"
+              version: "6.x"
+              includePreviewVersions: true
+
+          - task: DotNetCoreCLI@2
+            displayName: dotnet Build
+            inputs:
+              command: build
+              projects: "TodoApi/TodoApi.csproj"
+              arguments: "--configuration $(buildConfiguration)"
+          
+          - task: CopyFiles@2
+            inputs:
+              SourceFolder: $(Build.SourcesDirectory)
+              contents: 'Dockerfile'
+              targetFolder: $(Build.ArtifactStagingDirectory)/TodoApi
+            
+          - task: CopyFiles@2
+            inputs:
+              SourceFolder: $(Build.SourcesDirectory)
+              contents: 'azuredotnet.yaml'
+              targetFolder: $(Build.ArtifactStagingDirectory)/TodoApi
+          
+ 
+
+          - task: DotNetCoreCLI@2
+            displayName: dotnet Publish
+            inputs:
+              projects: "TodoApi/TodoApi.csproj"
+              command: publish
+              arguments: "--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)"
+              zipAfterPublish: false
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish Artifacts
+            inputs:
+              pathtoPublish: "$(Build.ArtifactStagingDirectory)"
+              artifactName: "drop"
+
+          #- task: Docker@2
+            #displayName: Build an image
+            #inputs:
+              #repository: $(imageName)
+              #command: build
+              #Dockerfile: $(Build.ArtifactStagingDirectory)/build/TodoApi/Dockerfile
+              
+          - task: Docker@2
+            displayName: Build and push an image to container registry
+            inputs:
+              command: buildAndPush
+              repository: $(imageName)
+              dockerfile: $(Build.ArtifactStagingDirectory)/TodoApi/Dockerfile
+              containerRegistry: $(dockerRegistryServiceConnection)
+              tags: |
+                $(tag)
