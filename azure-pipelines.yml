@@ -65,13 +65,6 @@ stages:
               pathtoPublish: "$(Build.ArtifactStagingDirectory)"
               artifactName: "drop"
 
-          #- task: Docker@2
-            #displayName: Build an image
-            #inputs:
-              #repository: $(imageName)
-              #command: build
-              #Dockerfile: $(Build.ArtifactStagingDirectory)/build/TodoApi/Dockerfile
-              
           - task: Docker@2
             displayName: Build and push an image to container registry
             inputs:
